@@ -68,8 +68,6 @@ const routes = async (req, res) => {
     return await runMiddleware([validateOtpSession], req, res, authController.switchTwoFactorMethod);
   }
 
-  //🔹 Recovery Codes 
-
   sendError(res, "common/not-implemented");
 };
 
