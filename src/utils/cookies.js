@@ -1,3 +1,5 @@
+const { cookieSameSite, isProduction } = require("../config/env");
+
 function setCookie(res, name, value, options = {}) {
   let cookie = `${name}=${encodeURIComponent(value)}`;
 
@@ -8,11 +10,11 @@ function setCookie(res, name, value, options = {}) {
     cookie += `; Max-Age=${options.maxAge}`;
   }
   if (options.sameSite) {
-    cookie += `; SameSite=${options.sameSite}`;
+    const sameSite = String(options.sameSite);
+    cookie += `; SameSite=${sameSite.charAt(0).toUpperCase()}${sameSite.slice(1)}`;
   }
 
   const existingCookies = res.getHeader("Set-Cookie");
-
   const cookies = existingCookies
     ? Array.isArray(existingCookies)
       ? existingCookies
@@ -24,21 +26,20 @@ function setCookie(res, name, value, options = {}) {
 
 function clearCookie(res, name) {
   const existing = res.getHeader("Set-Cookie");
-
   const cookies = existing
     ? Array.isArray(existing)
       ? existing
       : [existing]
     : [];
 
-  let expiredCookie = `${name}=; Max-Age=0; HttpOnly; Path=/; SameSite=Strict`;
+  const sameSite = cookieSameSite();
+  let expiredCookie = `${name}=; Max-Age=0; HttpOnly; Path=/; SameSite=${sameSite.charAt(0).toUpperCase()}${sameSite.slice(1)}`;
 
-  if (process.env.NODE_ENV === "production") {
+  if (isProduction() || sameSite === "none") {
     expiredCookie += "; Secure";
   }
 
   res.setHeader("Set-Cookie", [...cookies, expiredCookie]);
 }
-
 
 module.exports = { setCookie, clearCookie };

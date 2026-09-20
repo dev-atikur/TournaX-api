@@ -20,6 +20,18 @@ module.exports = {
     status: 429,
     message: "Too many requests. Please try again later.",
   },
+  "common/payload-too-large": {
+    status: 413,
+    message: "Request body is too large.",
+  },
+  "common/invalid-id": {
+    status: 400,
+    message: "Invalid identifier.",
+  },
+  "common/forbidden": {
+    status: 403,
+    message: "You are not allowed to perform this action.",
+  },
 
   // ─────────────────── Auth: General ───────────────────
   "auth/missing-fields": {
@@ -188,5 +200,99 @@ module.exports = {
   "auth/session-expired": {
     status: 401,
     message: "Your session has expired or been revoked. Please login again.",
+  },
+  "auth/forbidden": {
+    status: 403,
+    message: "You do not have permission to perform this action.",
+  },
+  "auth/account-restricted": {
+    status: 403,
+    message: "This account is banned or disabled.",
+  },
+  "auth/email-not-verified": {
+    status: 403,
+    message: "Please verify your email before continuing.",
+  },
+
+  // ─────────────────── Tournament ───────────────────
+  "tournament/not-found": {
+    status: 404,
+    message: "Tournament not found.",
+  },
+  "tournament/invalid-status": {
+    status: 400,
+    message: "Invalid tournament status.",
+  },
+  "tournament/invalid-transition": {
+    status: 409,
+    message: "This tournament status change is not allowed.",
+  },
+  "tournament/registration-closed": {
+    status: 409,
+    message: "Registration is not open for this tournament.",
+  },
+  "tournament/full": {
+    status: 409,
+    message: "This tournament is full.",
+  },
+  "tournament/already-registered": {
+    status: 409,
+    message: "You are already registered for this tournament.",
+  },
+  "tournament/not-registered": {
+    status: 404,
+    message: "You are not registered for this tournament.",
+  },
+  "tournament/ff-profile-required": {
+    status: 400,
+    message: "Free Fire name and UID are required to join this tournament.",
+  },
+  "tournament/cannot-modify": {
+    status: 409,
+    message: "This tournament can no longer be modified.",
+  },
+
+  // ─────────────────── Match ───────────────────
+  "match/not-found": {
+    status: 404,
+    message: "Match not found.",
+  },
+  "match/invalid-status": {
+    status: 400,
+    message: "Invalid match status.",
+  },
+  "match/invalid-transition": {
+    status: 409,
+    message: "This match status change is not allowed.",
+  },
+  "match/room-hidden": {
+    status: 403,
+    message: "Room details are not available yet.",
+  },
+  "match/result-exists": {
+    status: 409,
+    message: "A result already exists for this player in this match.",
+  },
+  "match/result-not-found": {
+    status: 404,
+    message: "Match result not found.",
+  },
+  "match/already-applied": {
+    status: 409,
+    message: "These results have already been applied.",
+  },
+  "match/unauthorized-submit": {
+    status: 403,
+    message: "Players cannot submit official match results.",
+  },
+
+  // ─────────────────── Notification / Report ───────────────────
+  "notification/not-found": {
+    status: 404,
+    message: "Notification not found.",
+  },
+  "report/not-found": {
+    status: 404,
+    message: "Report not found.",
   },
 };

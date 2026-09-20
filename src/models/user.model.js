@@ -1,9 +1,20 @@
 const mongoose = require("mongoose");
 const userConstants = require("../constants/user.constants");
 
-const userSchema = mongoose.Schema(
+const socialLinkSchema = new mongoose.Schema(
   {
-    // Basic Information
+    platform: {
+      type: String,
+      enum: Object.values(userConstants.SOCIAL_PLATFORMS),
+    },
+    url: { type: String, trim: true, maxlength: 300 },
+  },
+  { _id: false },
+);
+
+const userSchema = new mongoose.Schema(
+  {
+    fullName: { type: String, trim: true, maxlength: 80 },
     username: {
       type: String,
       minLength: 3,
@@ -34,8 +45,21 @@ const userSchema = mongoose.Schema(
         return userConstants.PROFILE_PIC_DEFAULT(this.username);
       },
     },
+    profilePicture: {
+      type: String,
+      default: function () {
+        return userConstants.PROFILE_PIC_DEFAULT(this.username);
+      },
+    },
+    bio: { type: String, trim: true, maxlength: 500, default: "" },
+    gender: {
+      type: String,
+      enum: ["male", "female", "other", "unspecified"],
+      default: "unspecified",
+    },
+    dateOfBirth: { type: Date, default: null },
+    socialLinks: { type: [socialLinkSchema], default: [] },
 
-    // Authentication
     email: {
       type: String,
       minLength: 3,
@@ -56,21 +80,21 @@ const userSchema = mongoose.Schema(
     password: {
       type: String,
       minLength: 6,
-      required:true,
+      required: true,
       select: false,
     },
 
-    // Account Status
     role: {
       type: String,
-      enum: ["user", "admin"],
-      default: "user",
+      enum: Object.values(userConstants.USER_ROLES),
+      default: userConstants.USER_ROLES.USER,
       index: true,
     },
     isActive: { type: Boolean, default: false },
     isDisabled: { type: Boolean, default: false },
+    isBanned: { type: Boolean, default: false, index: true },
+    banReason: { type: String, default: null, maxlength: 500 },
 
-    // Two-Factor Authentication
     twoFactorEnabled: { type: Boolean, default: false },
     twoFactorMethods: [
       {
@@ -87,16 +111,17 @@ const userSchema = mongoose.Schema(
     ],
     twoFactorVerifiedAt: { type: Date, default: null },
 
-    // Tournament Statistics
     totalMatches: { type: Number, default: 0, min: 0 },
     totalWins: { type: Number, default: 0, min: 0 },
     totalKills: { type: Number, default: 0, min: 0 },
-    totalPoints: { type: Number, default: 0, min: 0 },
+    totalPoints: { type: Number, default: 0, min: 0, index: true },
+    tournamentsPlayed: { type: Number, default: 0, min: 0 },
+    tournamentsWon: { type: Number, default: 0, min: 0 },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
+
+userSchema.index({ totalPoints: -1, totalWins: -1 });
 
 const userModel = mongoose.model("user", userSchema);
 

@@ -1,22 +1,23 @@
 const nodemailer = require("nodemailer");
+const { logInfo, logError } = require("../utils/logger");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
+  host: process.env.SMTP_HOST || "smtp.gmail.com",
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: String(process.env.SMTP_PORT || "465") === "465",
+  auth: process.env.EMAIL_USER
+    ? {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      }
+    : undefined,
 });
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.log("SMTP Error:", error);
-  } else {
-    console.log("SMTP Ready");
-  }
-});
-
+if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  transporter.verify((error) => {
+    if (error) logError({ message: "smtp_error", err: error });
+    else logInfo({ message: "smtp_ready" });
+  });
+}
 
 module.exports = transporter;

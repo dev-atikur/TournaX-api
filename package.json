@@ -1,20 +1,24 @@
 {
-  "name": "TournaX",
+  "name": "play-with-fair",
   "version": "1.0.0",
-  "description": "",
+  "description": "Play With Fair (PWF) — Free Fire tournament platform backend",
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx nodemon server.js",
     "start": "node server.js"
   },
-  "keywords": [],
+  "keywords": [
+    "free-fire",
+    "esports",
+    "tournament",
+    "pwf"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
-    "dns": "^0.2.2",
     "dotenv": "^17.4.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",

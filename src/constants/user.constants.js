@@ -9,7 +9,7 @@ const SOCIAL_PLATFORMS = {
 };
 
 const PROFILE_PIC_DEFAULT = (username) => {
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&color=fff&size=256`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(username || "PWF")}&background=111827&color=fff&size=256`;
 };
 
 const TWO_FACTOR_METHOD = {
@@ -19,9 +19,23 @@ const TWO_FACTOR_METHOD = {
   RECOVERY: "recovery",
 };
 
+const USER_ROLES = {
+  USER: "user",
+  MODERATOR: "moderator",
+  ADMIN: "admin",
+};
+
+const USER_PUBLIC_FIELDS = [
+  "-password",
+  "-twoFactorSecret",
+  "-recoveryCodes",
+  "-__v",
+];
 
 module.exports = {
   SOCIAL_PLATFORMS,
   PROFILE_PIC_DEFAULT,
   TWO_FACTOR_METHOD,
+  USER_ROLES,
+  USER_PUBLIC_FIELDS,
 };

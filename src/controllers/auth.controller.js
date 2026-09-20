@@ -1,18 +1,32 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const userModel = require("../models/user.model");
-const { generateSecret, verify } = require("otplib");
-const { sendOtp, finalizeOtpVerification } = require("../utils/otp");
+const { generateSecret } = require("otplib");
+const { sendOtp, finalizeOtpVerification, issueSession } = require("../utils/otp");
 const { sendSuccess, sendError } = require("../utils/response");
 const jwt = require("jsonwebtoken");
-const { clearCookie, setCookie } = require("../utils/cookies");
+const { clearCookie } = require("../utils/cookies");
 const { cleanObject } = require("../utils/cleanData");
 const sessionModel = require("../models/session.model");
 const { TWO_FACTOR_METHOD } = require("../constants/user.constants");
+const { isPassword } = require("../utils/validation");
+const { setAuthCookies, clearAuthCookies } = require("../services/token.service");
+const { logError } = require("../utils/logger");
 
-//🔹 Register User function
+function duplicateKeyCode(error) {
+  if (error && error.code === 11000) {
+    const field = Object.keys(error.keyPattern || error.keyValue || {})[0];
+    if (field === "email") return "auth/email-already-exists";
+    if (field === "username") return "auth/username-already-exists";
+    if (field === "ffUid") return "auth/ffUid-already-exists";
+    if (field === "phone") return "auth/phone-already-exists";
+  }
+  return null;
+}
+
 async function register(req, res) {
   try {
-    const { ffName, ffUid, email, username } = req.body;
+    const { ffName, ffUid, email, username, fullName } = req.body;
     const hash = await bcrypt.hash(req.body.password, 10);
 
     const user = await userModel.create({
@@ -20,6 +34,7 @@ async function register(req, res) {
       ffUid,
       email,
       username,
+      fullName,
       password: hash,
     });
 
@@ -31,55 +46,54 @@ async function register(req, res) {
 
     sendSuccess(res, 201, "Registration successful. OTP sent to email.");
   } catch (error) {
-    console.log(error);
+    const dup = duplicateKeyCode(error);
+    if (dup) return sendError(res, dup);
+    logError({ message: "register_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Login User function
 async function login(req, res) {
   try {
     const { _id, email, twoFactorEnabled, isActive, emailVerified } = req.data;
 
     if (twoFactorEnabled || !isActive || !emailVerified) {
-      const otpSent = await sendOtp(res, "email", "login", { id: _id, email });
+      const otpSent = await sendOtp(res, "email", emailVerified && twoFactorEnabled ? "login" : "verify-email", {
+        id: _id,
+        email,
+      });
       if (!otpSent) return;
-
-      return sendSuccess(res, 201, "OTP sent successfully. Please verify to complete login.");
+      return sendSuccess(res, 200, "OTP sent successfully. Please verify to complete login.");
     }
 
-    const validation = await finalizeOtpVerification(req, res, _id, "login");
-    if (!validation) return;
-
-    return sendSuccess(res, 201, "Login successfully", cleanObject(req.data, ["password"]));
+    await issueSession(req, res, req.data);
+    return sendSuccess(res, 200, "Login successfully", cleanObject(req.data, ["password"]));
   } catch (error) {
-    console.log(error);
+    logError({ message: "login_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 LogOut User function
 async function logout(req, res) {
   try {
     const userId = req.user.id;
-    const sessionId = req.params.sessionId;
+    const sessionId = req.params.sessionId || req.user.sessionId;
 
-    await sessionModel.updateOne(
-      { _id: sessionId, userId, isRevoked: false },
-      { $set: { isRevoked: true, expiresAt: new Date() } },
-    );
+    if (sessionId) {
+      await sessionModel.updateOne(
+        { _id: sessionId, userId, isRevoked: false },
+        { $set: { isRevoked: true, expiresAt: new Date() } },
+      );
+    }
 
-    clearCookie(res, "accessId");
-    clearCookie(res, "localId");
-
+    clearAuthCookies(res);
     return sendSuccess(res, 200, "Logged out successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "logout_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 LogOut All User function
 async function logoutAllDevices(req, res) {
   try {
     const userId = req.user.id;
@@ -88,22 +102,19 @@ async function logoutAllDevices(req, res) {
       { $set: { isRevoked: true, expiresAt: new Date() } },
     );
 
-    clearCookie(res, "accessId");
-    clearCookie(res, "localId");
-
+    clearAuthCookies(res);
     return sendSuccess(res, 200, "Logged out from all devices");
   } catch (error) {
-    console.log(error);
+    logError({ message: "logout_all_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Refresh access id
 async function refreshAccessId(req, res) {
   try {
     const localId = req.cookies.localId;
     if (!localId) {
-      clearCookie(res, "accessId");
+      clearAuthCookies(res);
       return sendError(res, "auth/unauthorized");
     }
 
@@ -111,102 +122,109 @@ async function refreshAccessId(req, res) {
     try {
       decoded = jwt.verify(localId, process.env.LOCAL_ID_SECRET);
     } catch (error) {
-      clearCookie(res, "localId");
-      clearCookie(res, "accessId");
+      clearAuthCookies(res);
       return sendError(res, "auth/unauthorized");
     }
 
-    const session = await sessionModel.findOneAndUpdate(
-      {
+    const session = await sessionModel
+      .findOne({
         _id: decoded.sessionId,
         userId: decoded.id,
         isRevoked: false,
-      },
-      { $set: { lastActiveAt: new Date() } },
-      { new: true },
-    );
+        expiresAt: { $gt: new Date() },
+      })
+      .select("+localIdHash");
+
     if (!session) {
-      clearCookie(res, "localId");
-      clearCookie(res, "accessId");
+      clearAuthCookies(res);
       return sendError(res, "auth/unauthorized");
     }
 
-    const user = await userModel.findById(decoded.id).select("role");
+    if (session.localIdHash && decoded.tokenHash) {
+      const incomingHash = crypto.createHash("sha256").update(decoded.tokenHash).digest("hex");
+      if (incomingHash !== session.localIdHash) {
+        clearAuthCookies(res);
+        return sendError(res, "auth/unauthorized");
+      }
+    }
+
+    session.lastActiveAt = new Date();
+    await session.save();
+
+    const user = await userModel.findById(decoded.id).select("role isBanned isDisabled");
     if (!user) {
-      clearCookie(res, "localId");
-      clearCookie(res, "accessId");
+      clearAuthCookies(res);
       return sendError(res, "auth/user-not-found");
+    }
+    if (user.isBanned || user.isDisabled) {
+      clearAuthCookies(res);
+      return sendError(res, "auth/account-restricted");
     }
 
     const accessId = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, sessionId: session._id },
       process.env.ACCESS_ID_SECRET,
       { expiresIn: process.env.ACCESS_ID_EXPIRES_IN },
     );
 
-    setCookie(res, "accessId", accessId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/",
-      maxAge: parseInt(process.env.ACCESS_ID_EXPIRES_IN, 10) * 60,
-    });
-
+    setAuthCookies(res, { accessId });
     return sendSuccess(res, 200, "Access ID refreshed successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "refresh_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Change Password function
+async function getMe(req, res) {
+  try {
+    const user = await userModel.findById(req.user.id);
+    if (!user) return sendError(res, "auth/user-not-found");
+    return sendSuccess(res, 200, "User data fetch successfully.", cleanObject(user));
+  } catch (error) {
+    logError({ message: "get_me_failed", err: error });
+    return sendError(res, "common/server-error");
+  }
+}
+
 async function changePassword(req, res) {
   try {
     const { oldPassword, newPassword } = req.body;
-
     if (!oldPassword || !newPassword) return sendError(res, "auth/missing-fields");
+    if (!isPassword(newPassword)) return sendError(res, "auth/weak-new-password");
 
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
-    if (typeof newPassword !== "string") {
-      return sendError(res, "auth/invalid-new-password");
-    }
-    if (newPassword.length < 6 || !passwordRegex.test(newPassword)) {
-      return sendError(res, "auth/weak-new-password");
-    }
-
-    const user = await userModel
-      .findById(req.user.id)
-      .select("+password email");
+    const user = await userModel.findById(req.user.id).select("+password email");
     if (!user) return sendError(res, "auth/user-not-found");
 
     const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
-
-    if (!isPasswordValid) {
-      return sendError(res, "auth/incorrect-old-password");
-    }
+    if (!isPasswordValid) return sendError(res, "auth/incorrect-old-password");
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
+    await sessionModel.updateMany(
+      { userId: user._id, isRevoked: false, _id: { $ne: req.user.sessionId } },
+      { $set: { isRevoked: true, expiresAt: new Date() } },
+    );
+
     return sendSuccess(res, 200, "Password changed successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "change_password_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Forgot Password function
 async function forgotPassword(req, res) {
   try {
     clearCookie(res, "resetId");
     const { email, phone, method } = req.body;
     if (!email && !phone) return sendError(res, "auth/missing-fields");
-
     if (!["email", "sms"].includes(method)) return sendError(res, "auth/invalid-method");
 
-    const user = await userModel.findOne({
-      $or: [{ email }, { phone }],
-    });
+    const query = method === "sms"
+      ? { phone: String(phone || "").trim() }
+      : { email: String(email || "").trim().toLowerCase() };
+
+    const user = await userModel.findOne(query);
     if (!user) {
       return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
     }
@@ -220,32 +238,24 @@ async function forgotPassword(req, res) {
 
     return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
   } catch (error) {
-    console.log(error);
+    logError({ message: "forgot_password_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Reset Password function
 async function resetPassword(req, res) {
   try {
     const password = req.body.password;
     const resetId = req.cookies.resetId;
 
     if (!password) return sendError(res, "auth/missing-fields");
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
-    if (typeof password !== "string") {
-      return sendError(res, "auth/invalid-password");
-    }
-    if (password.length < 6 || !passwordRegex.test(password)) {
-      return sendError(res, "auth/weak-password");
-    }
+    if (!isPassword(password)) return sendError(res, "auth/weak-password");
     if (!resetId) return sendError(res, "auth/reset-session-missing");
 
     let decoded;
     try {
       decoded = jwt.verify(resetId, process.env.RESET_ID_SECRET);
     } catch (error) {
-      console.log(error);
       return sendError(res, "auth/invalid-reset-session");
     }
 
@@ -254,111 +264,143 @@ async function resetPassword(req, res) {
 
     user.password = await bcrypt.hash(password, 10);
     await user.save();
+    await sessionModel.updateMany(
+      { userId: user._id, isRevoked: false },
+      { $set: { isRevoked: true, expiresAt: new Date() } },
+    );
 
     clearCookie(res, "resetId");
+    clearAuthCookies(res);
     return sendSuccess(res, 200, "Password reset successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "reset_password_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 setup TwoFactor Function
 async function setupTwoFactor(req, res) {
   try {
-    if (req.params.method === TWO_FACTOR_METHOD.SMS && !req.body.phone) return sendError(res, "auth/missing-fields");
-    if (req.params.method === TWO_FACTOR_METHOD.EMAIL && !req.body.email) return sendError(res, "auth/missing-fields");
+    const method = req.params.method || req.body.method;
+    if (method === TWO_FACTOR_METHOD.SMS && !req.body.phone) return sendError(res, "auth/missing-fields");
+    if (method === TWO_FACTOR_METHOD.EMAIL && !req.body.email && !req.authUser?.email) {
+      return sendError(res, "auth/missing-fields");
+    }
 
-    const twoFactorSecret = generateSecret();
-
-    if (req.params.method !== TWO_FACTOR_METHOD.RECOVERY) {
-      const otpSent = await sendOtp(res, req.params.method, "setup-2fa", {
+    if (method === TWO_FACTOR_METHOD.AUTHENTICATOR) {
+      const twoFactorSecret = generateSecret();
+      const otpSent = await sendOtp(res, method, "setup-2fa", {
         id: req.user.id,
-        email: req?.body?.email,
-        phone: req?.body?.phone,
-        setupMethod: req.params.method,
+        email: req.body.email || req.authUser?.email,
+        setupMethod: method,
         twoFactorSecret,
+      });
+      if (!otpSent) return;
+      return sendSuccess(res, 200, "Authenticator setup started", {
+        secret: twoFactorSecret,
+      });
+    }
+
+    if (method !== TWO_FACTOR_METHOD.RECOVERY) {
+      const otpSent = await sendOtp(res, method, "setup-2fa", {
+        id: req.user.id,
+        email: req.body.email || req.authUser?.email,
+        phone: req.body.phone,
+        setupMethod: method,
       });
       if (!otpSent) return;
     }
 
-    return sendSuccess(res, 200, "OTP resend successfully");
+    return sendSuccess(res, 200, "OTP sent successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "setup_2fa_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Verify Otp function
 async function verifyTwoFactor(req, res) {
   try {
     const { id, purpose } = req.data;
-
     const validation = await finalizeOtpVerification(req, res, id, purpose);
     if (!validation) return;
 
     clearCookie(res, "otpId");
-    return sendSuccess(res, 200, "OTP verified successfully",
+    return sendSuccess(
+      res,
+      200,
+      "OTP verified successfully",
       validation === true ? null : cleanObject(validation, ["password"]),
     );
   } catch (error) {
-    console.log(error);
+    logError({ message: "verify_2fa_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Resend Otp function
 async function resendTwoFactorCode(req, res) {
   try {
-    console.log(req.data);
     const { id, type, email, phone, purpose } = req.data;
-
     const otpSent = await sendOtp(res, type, purpose, { id, email, phone });
     if (!otpSent) return;
-
-    return sendSuccess(res, 200, "OTP resend successfully");
+    return sendSuccess(res, 200, "OTP resent successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "resend_otp_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
-//🔹 Switch two factor method
 async function switchTwoFactorMethod(req, res) {
   try {
     const newMethod = req.body.method;
-    if (!["email", "sms", "authenticator_app"].includes(newMethod)) {
+    if (![TWO_FACTOR_METHOD.EMAIL, TWO_FACTOR_METHOD.SMS, TWO_FACTOR_METHOD.AUTHENTICATOR, "authenticator_app"].includes(newMethod)) {
       return sendError(res, "auth/invalid-2fa-method");
     }
 
     const { id, email, phone, purpose } = req.data;
-
     const otpSent = await sendOtp(res, newMethod, purpose, { id, email, phone });
     if (!otpSent) return;
-
-    return sendSuccess(res, 200, "OTP resend successfully");
+    return sendSuccess(res, 200, "OTP resent successfully");
   } catch (error) {
-    console.log(error);
+    logError({ message: "switch_2fa_failed", err: error });
+    return sendError(res, "common/server-error");
+  }
+}
+
+async function verifyEmail(req, res) {
+  req.body.otp = req.body.otp || req.body.code;
+  return verifyTwoFactor(req, res);
+}
+
+async function resendVerification(req, res) {
+  try {
+    const email = req.body.email || req.authUser?.email;
+    if (!email) return sendError(res, "auth/missing-fields");
+    const user = await userModel.findOne({ email: String(email).toLowerCase() });
+    if (!user) return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
+    if (user.emailVerified) return sendSuccess(res, 200, "Email is already verified");
+
+    const otpSent = await sendOtp(res, "email", "verify-email", { id: user._id, email: user.email });
+    if (!otpSent) return;
+    return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
+  } catch (error) {
+    logError({ message: "resend_verification_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
 
 module.exports = {
-  //🔹 Basic Auth
   register,
   login,
   logout,
   logoutAllDevices,
   refreshAccessId,
-
-  //🔹 Password
+  getMe,
   changePassword,
   forgotPassword,
   resetPassword,
-
-  //🔹 2FA
   setupTwoFactor,
   verifyTwoFactor,
   resendTwoFactorCode,
   switchTwoFactorMethod,
+  verifyEmail,
+  resendVerification,
 };

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const sessionSchema = mongoose.Schema(
+const sessionSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -8,6 +8,7 @@ const sessionSchema = mongoose.Schema(
       required: true,
       index: true,
     },
+    localIdHash: { type: String, default: null, select: false },
     deviceInfo: {
       deviceName: { type: String, default: "Unknown Device" },
       deviceType: { type: String, default: "unknown" },
@@ -16,7 +17,7 @@ const sessionSchema = mongoose.Schema(
     },
     ipAddress: { type: String, default: null },
     userAgent: { type: String, default: null },
-    isRevoked: { type: Boolean, default: false },
+    isRevoked: { type: Boolean, default: false, index: true },
     lastActiveAt: { type: Date, default: Date.now },
     expiresAt: { type: Date, required: true },
   },
@@ -24,7 +25,8 @@ const sessionSchema = mongoose.Schema(
 );
 
 sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-const sessionModel = mongoose.model("session", sessionSchema);
+sessionSchema.index({ userId: 1, isRevoked: 1 });
 
+const sessionModel = mongoose.model("session", sessionSchema);
 
 module.exports = sessionModel;

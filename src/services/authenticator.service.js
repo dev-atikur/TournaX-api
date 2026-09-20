@@ -1,29 +1,23 @@
 const { verify } = require("otplib");
 const userModel = require("../models/user.model");
 
-// verify Authenticator
-async function verifyOtpAuthenticator(userId, otp) {
+async function verifyOtpAuthenticator(userId, otp, fallbackSecret) {
   try {
     const user = await userModel.findById(userId).select("+twoFactorSecret");
-
-    if (!user) return "auth/user-not-found";
-    if (!user.twoFactorSecret) return "auth/2fa-not-enabled";
-      
-    
+    const secret = fallbackSecret || user?.twoFactorSecret;
+    if (!user && !fallbackSecret) return "auth/user-not-found";
+    if (!secret) return "auth/2fa-not-enabled";
 
     const result = await verify({
-      secret: user.twoFactorSecret,
-      token: otp,
+      secret,
+      token: String(otp),
     });
-    if (!result.valid) return "auth/invalid-otp";
-  
-
-    return true;
+    if (!result || result.valid === false) return "auth/invalid-otp";
+    if (result.valid === true || result === true) return true;
+    return "auth/invalid-otp";
   } catch (error) {
-    console.error(error);
     return "common/server-error";
   }
 }
-
 
 module.exports = { verifyOtpAuthenticator };

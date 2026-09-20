@@ -1,13 +1,26 @@
 require("dotenv").config();
 const http = require("http");
-const app = require("./src/app");
 const dns = require("dns");
+const app = require("./src/app");
 const connectDB = require("./src/db/db");
-const port = process.env.PORT || 5000;
+const { validateEnv } = require("./src/config/env");
+const { logInfo, logError } = require("./src/utils/logger");
 
-const server = http.createServer(app);
+validateEnv();
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
-connectDB();
 
+const port = Number(process.env.PORT) || 5000;
+const host = process.env.HOST || "0.0.0.0";
 
-server.listen(port, () => console.log(`Server running at http://localhost:${port}`));
+async function start() {
+  await connectDB();
+  const server = http.createServer(app);
+  server.listen(port, host, () => {
+    logInfo({ message: "server_started", host, port });
+  });
+}
+
+start().catch((error) => {
+  logError({ message: "server_start_failed", err: error });
+  process.exit(1);
+});
