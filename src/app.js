@@ -32,7 +32,6 @@ const router = async (req, res) => {
   return sendError(res, "common/not-implemented");
 };
 
-const app = (req, res) =>
-  runMiddleware([logger, cors, cookieParser, json, rateLimiter], req, res, router);
+const app = (req, res) => runMiddleware([logger, cors, cookieParser, json, rateLimiter], req, res, router);
 
 module.exports = app;

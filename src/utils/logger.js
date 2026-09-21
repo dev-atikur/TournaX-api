@@ -46,4 +46,5 @@ function logError(payload) {
   console.error(JSON.stringify({ level: "error", time: new Date().toISOString(), ...safe }));
 }
 
+
 module.exports = { logInfo, logError, redact };

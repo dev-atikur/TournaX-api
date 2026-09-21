@@ -42,4 +42,5 @@ function clearCookie(res, name) {
   res.setHeader("Set-Cookie", [...cookies, expiredCookie]);
 }
 
+
 module.exports = { setCookie, clearCookie };

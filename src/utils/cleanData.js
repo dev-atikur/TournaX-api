@@ -22,4 +22,5 @@ function cleanArray(arr, excludeFields = []) {
   return (arr || []).map((item) => cleanObject(item, excludeFields));
 }
 
+
 module.exports = { cleanObject, cleanArray };
