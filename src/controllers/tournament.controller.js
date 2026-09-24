@@ -214,10 +214,10 @@ async function cancelTournament(req, res) {
 async function registerForTournament(req, res) {
   try {
     if (!isObjectId(req.params.id)) return sendError(res, "common/invalid-id");
-    const user = await userModel.findById(req.user.id).select("ffName ffUid isBanned emailVerified");
+    const user = await userModel.findById(req.user.id).select("ffName isBanned emailVerified");
     if (!user) return sendError(res, "auth/user-not-found");
     if (user.isBanned) return sendError(res, "auth/account-restricted");
-    if (!user.ffName || !user.ffUid) return sendError(res, "tournament/ff-profile-required");
+    if (!user.ffName) return sendError(res, "tournament/ff-profile-required");
 
     const result = await withTransaction(async (session) => {
       const tournament = await tournamentModel.findById(req.params.id).session(session || undefined);
@@ -232,7 +232,6 @@ async function registerForTournament(req, res) {
               tournamentId: tournament._id,
               userId: user._id,
               ffName: user.ffName,
-              ffUid: user.ffUid,
               status: "registered",
             },
           ],
@@ -316,7 +315,7 @@ async function listParticipants(req, res) {
         .sort({ createdAt: 1 })
         .skip(skip)
         .limit(limit)
-        .populate("userId", "username ffName ffUid profilePicture avatar totalPoints")
+        .populate("userId", "username ffName profilePicture avatar totalPoints")
         .lean(),
       tournamentRegistrationModel.countDocuments(filter),
     ]);

@@ -4,7 +4,6 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_REGEX = /^(?!.*\.\.)(?!.*__)[a-zA-Z0-9._]{3,30}$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
 const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/;
-const FF_UID_REGEX = /^[0-9]{5,20}$/;
 
 function isEmail(value) {
   return typeof value === "string" && EMAIL_REGEX.test(value.trim().toLowerCase());
@@ -26,10 +25,6 @@ function isPhone(value) {
   return typeof value === "string" && PHONE_REGEX.test(value.trim());
 }
 
-function isFfUid(value) {
-  return typeof value === "string" && FF_UID_REGEX.test(value.trim());
-}
-
 function sanitizeString(value, max = 500) {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, max);
@@ -40,12 +35,10 @@ module.exports = {
   USERNAME_REGEX,
   PASSWORD_REGEX,
   PHONE_REGEX,
-  FF_UID_REGEX,
   isEmail,
   isUsername,
   isPassword,
   isObjectId,
   isPhone,
-  isFfUid,
   sanitizeString,
 };

@@ -18,7 +18,6 @@ function duplicateKeyCode(error) {
     const field = Object.keys(error.keyPattern || error.keyValue || {})[0];
     if (field === "email") return "auth/email-already-exists";
     if (field === "username") return "auth/username-already-exists";
-    if (field === "ffUid") return "auth/ffUid-already-exists";
     if (field === "phone") return "auth/phone-already-exists";
   }
   return null;
@@ -26,12 +25,11 @@ function duplicateKeyCode(error) {
 
 async function register(req, res) {
   try {
-    const { ffName, ffUid, email, username, fullName } = req.body;
+    const { ffName, email, username, fullName } = req.body;
     const hash = await bcrypt.hash(req.body.password, 10);
 
     const user = await userModel.create({
       ffName,
-      ffUid,
       email,
       username,
       fullName,
@@ -171,17 +169,6 @@ async function refreshAccessId(req, res) {
     return sendSuccess(res, 200, "Access ID refreshed successfully");
   } catch (error) {
     logError({ message: "refresh_failed", err: error });
-    return sendError(res, "common/server-error");
-  }
-}
-
-async function getMe(req, res) {
-  try {
-    const user = await userModel.findById(req.user.id);
-    if (!user) return sendError(res, "auth/user-not-found");
-    return sendSuccess(res, 200, "User data fetch successfully.", cleanObject(user));
-  } catch (error) {
-    logError({ message: "get_me_failed", err: error });
     return sendError(res, "common/server-error");
   }
 }
@@ -348,6 +335,12 @@ async function resendTwoFactorCode(req, res) {
   }
 }
 
+async function verifyEmail(req, res) {
+  req.body.otp = req.body.otp || req.body.code;
+  return verifyTwoFactor(req, res);
+}
+
+
 async function switchTwoFactorMethod(req, res) {
   try {
     const newMethod = req.body.method;
@@ -365,27 +358,35 @@ async function switchTwoFactorMethod(req, res) {
   }
 }
 
-async function verifyEmail(req, res) {
-  req.body.otp = req.body.otp || req.body.code;
-  return verifyTwoFactor(req, res);
-}
 
-async function resendVerification(req, res) {
+async function disableTwoFactor(req, res) {
   try {
-    const email = req.body.email || req.authUser?.email;
-    if (!email) return sendError(res, "auth/missing-fields");
-    const user = await userModel.findOne({ email: String(email).toLowerCase() });
-    if (!user) return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
-    if (user.emailVerified) return sendSuccess(res, 200, "Email is already verified");
+    const userId = req.user.id;
 
-    const otpSent = await sendOtp(res, "email", "verify-email", { id: user._id, email: user.email });
-    if (!otpSent) return;
-    return sendSuccess(res, 200, "If this account exists, an OTP has been sent");
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return sendError(res, "auth/user-not-found");
+    }
+
+    if (!user.twoFactorEnabled) {
+      return sendError(res, "auth/2fa-not-enabled");
+    }
+
+    user.twoFactorEnabled = false;
+    user.twoFactorMethod = null;
+
+    await user.save();
+
+    return sendSuccess(res, {
+      message: "Two-factor authentication disabled successfully",
+    });
   } catch (error) {
-    logError({ message: "resend_verification_failed", err: error });
+    console.error("disableTwoFactor:", error);
     return sendError(res, "common/server-error");
   }
 }
+
 
 module.exports = {
   register,
@@ -393,7 +394,6 @@ module.exports = {
   logout,
   logoutAllDevices,
   refreshAccessId,
-  getMe,
   changePassword,
   forgotPassword,
   resetPassword,
@@ -401,6 +401,5 @@ module.exports = {
   verifyTwoFactor,
   resendTwoFactorCode,
   switchTwoFactorMethod,
-  verifyEmail,
-  resendVerification,
+  disableTwoFactor
 };

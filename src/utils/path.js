@@ -28,4 +28,5 @@ function matchRoute(pathname, pattern) {
   return params;
 }
 
+
 module.exports = { getPathname, getQuery, matchRoute };

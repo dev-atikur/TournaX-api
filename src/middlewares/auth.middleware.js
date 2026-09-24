@@ -3,7 +3,7 @@ const { sendError } = require("../utils/response");
 const userModel = require("../models/user.model");
 const sessionModel = require("../models/session.model");
 
-const USER_SAFE_SELECT = "username email role isActive isDisabled isBanned emailVerified ffName ffUid twoFactorEnabled";
+const USER_SAFE_SELECT = "username email role isActive isDisabled isBanned emailVerified ffName twoFactorEnabled";
 
 async function attachUser(req, decoded) {
   const user = await userModel.findById(decoded.id).select(USER_SAFE_SELECT).lean();
@@ -29,7 +29,6 @@ async function attachUser(req, decoded) {
     sessionId: decoded.sessionId || null,
     emailVerified: user.emailVerified,
     ffName: user.ffName,
-    ffUid: user.ffUid,
   };
   req.authUser = user;
   return null;

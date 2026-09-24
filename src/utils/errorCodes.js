@@ -56,10 +56,6 @@ module.exports = {
     status: 400,
     message: "FF name must be at least 2 characters long.",
   },
-  "auth/invalid-ffUid": {
-    status: 400,
-    message: "FF UID must be at least 3 characters long.",
-  },
   "auth/invalid-username": {
     status: 400,
     message:
@@ -89,10 +85,6 @@ module.exports = {
   "auth/ffName-already-exists": {
     status: 409,
     message: "This FF name is already registered.",
-  },
-  "auth/ffUid-already-exists": {
-    status: 409,
-    message: "This FF UID is already registered.",
   },
   "auth/phone-already-exists": {
     status: 409,
@@ -245,7 +237,7 @@ module.exports = {
   },
   "tournament/ff-profile-required": {
     status: 400,
-    message: "Free Fire name and UID are required to join this tournament.",
+    message: "Free Fire name is required to join this tournament.",
   },
   "tournament/cannot-modify": {
     status: 409,

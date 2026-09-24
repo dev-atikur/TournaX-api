@@ -19,7 +19,7 @@ async function globalLeaderboard(req, res) {
         .sort({ totalPoints: -1, totalWins: -1, totalKills: -1 })
         .skip(skip)
         .limit(limit)
-        .select("username ffName ffUid profilePicture avatar totalPoints totalWins totalMatches totalKills tournamentsWon")
+        .select("username ffName profilePicture avatar totalPoints totalWins totalMatches totalKills tournamentsWon")
         .lean(),
       userModel.countDocuments(filter),
     ]);
@@ -29,7 +29,6 @@ async function globalLeaderboard(req, res) {
       id: user._id,
       username: user.username,
       ffName: user.ffName,
-      ffUid: user.ffUid,
       profilePicture: user.profilePicture || user.avatar,
       totalPoints: user.totalPoints,
       totalWins: user.totalWins,
@@ -86,7 +85,6 @@ async function tournamentLeaderboard(req, res) {
                 id: "$user._id",
                 username: "$user.username",
                 ffName: "$user.ffName",
-                ffUid: "$user.ffUid",
                 profilePicture: { $ifNull: ["$user.profilePicture", "$user.avatar"] },
                 totalPoints: 1,
                 totalKills: 1,

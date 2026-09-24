@@ -22,7 +22,6 @@ async function listUsers(req, res) {
       filter.$or = [
         { username: { $regex: escaped, $options: "i" } },
         { email: { $regex: escaped, $options: "i" } },
-        { ffUid: { $regex: escaped, $options: "i" } },
         { ffName: { $regex: escaped, $options: "i" } },
       ];
     }

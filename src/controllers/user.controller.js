@@ -18,7 +18,7 @@ async function getCurrentUserData(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const allowed = ["fullName", "bio", "gender", "dateOfBirth", "profilePicture", "avatar", "socialLinks"];
+    const allowed = ["fullName", "bio", "profilePicture", "avatar", "socialLinks"];
     const updates = {};
     for (const field of allowed) {
       if (req.body[field] !== undefined) updates[field] = req.body[field];

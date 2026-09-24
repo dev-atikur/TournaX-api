@@ -1,10 +1,5 @@
 const runMiddleware = require("../middlewares/middlewareRunner");
-const {
-  validateRegister,
-  validateLogin,
-  validateVerifyTwoFactor,
-  validateOtpSession,
-} = require("../validators/auth.validator");
+const { validateRegister, validateLogin, validateVerifyTwoFactor, validateOtpSession } = require("../validators/auth.validator");
 const { protect } = require("../middlewares/auth.middleware");
 const authController = require("../controllers/auth.controller");
 const userConstants = require("../constants/user.constants");
@@ -36,10 +31,6 @@ const routes = async (req, res) => {
     return runMiddleware([protect], req, res, authController.logoutAllDevices);
   }
 
-  if (path === "/api/auth/me" && req.method === "GET") {
-    return runMiddleware([protect], req, res, authController.getMe);
-  }
-
   if (path === "/api/auth/refresh" && req.method === "POST") {
     return authController.refreshAccessId(req, res);
   }
@@ -54,14 +45,6 @@ const routes = async (req, res) => {
 
   if (path === "/api/auth/reset-password" && req.method === "POST") {
     return authController.resetPassword(req, res);
-  }
-
-  if (path === "/api/auth/verify-email" && req.method === "POST") {
-    return runMiddleware([validateVerifyTwoFactor], req, res, authController.verifyTwoFactor);
-  }
-
-  if (path === "/api/auth/resend-verification" && req.method === "POST") {
-    return authController.resendVerification(req, res);
   }
 
   if (path === "/api/auth/2fa/setup" && (req.method === "POST" || req.method === "PATCH")) {
@@ -93,7 +76,13 @@ const routes = async (req, res) => {
     return runMiddleware([validateOtpSession], req, res, authController.switchTwoFactorMethod);
   }
 
+  if (path === "/api/auth/2fa/disable" && req.method === "PATCH") {
+    return runMiddleware([protect], req, res, authController.disableTwoFactor);
+  }
+
+  
   sendError(res, "common/not-implemented");
 };
+
 
 module.exports = routes;

@@ -31,14 +31,6 @@ const userSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    ffUid: {
-      type: String,
-      minLength: 3,
-      maxLength: 100,
-      unique: true,
-      required: true,
-      trim: true,
-    },
     avatar: {
       type: String,
       default: function () {
@@ -52,12 +44,6 @@ const userSchema = new mongoose.Schema(
       },
     },
     bio: { type: String, trim: true, maxlength: 500, default: "" },
-    gender: {
-      type: String,
-      enum: ["male", "female", "other", "unspecified"],
-      default: "unspecified",
-    },
-    dateOfBirth: { type: Date, default: null },
     socialLinks: { type: [socialLinkSchema], default: [] },
 
     email: {
@@ -91,7 +77,6 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
     isActive: { type: Boolean, default: false },
-    isDisabled: { type: Boolean, default: false },
     isBanned: { type: Boolean, default: false, index: true },
     banReason: { type: String, default: null, maxlength: 500 },
 
@@ -122,7 +107,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ totalPoints: -1, totalWins: -1 });
-
 const userModel = mongoose.model("user", userSchema);
+
 
 module.exports = userModel;

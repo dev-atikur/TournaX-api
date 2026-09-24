@@ -4,22 +4,18 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { verifyOtpSMS } = require("../services/sms.service");
 const { verifyOtpAuthenticator } = require("../services/authenticator.service");
-const { isEmail, isUsername, isPassword, isFfUid } = require("../utils/validation");
+const { isEmail, isUsername, isPassword } = require("../utils/validation");
 const { TWO_FACTOR_METHOD } = require("../constants/user.constants");
 
 async function validateRegister(req, res, next) {
-  const { ffName, ffUid, email, username, password } = req.body;
+  const { ffName, email, username, password } = req.body;
 
-  if (!ffName || !ffUid || !email || !username || !password) {
+  if (!ffName || !email || !username || !password) {
     return sendError(res, "auth/missing-fields");
   }
 
   if (typeof ffName !== "string" || ffName.trim().length < 3) {
     return sendError(res, "auth/invalid-ffName");
-  }
-
-  if (!isFfUid(String(ffUid)) && (typeof ffUid !== "string" || ffUid.trim().length < 3)) {
-    return sendError(res, "auth/invalid-ffUid");
   }
 
   if (!isUsername(username)) {
@@ -36,27 +32,23 @@ async function validateRegister(req, res, next) {
 
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedUsername = username.trim().toLowerCase();
-  const normalizedFfUid = String(ffUid).trim();
 
   const isUserExist = await userModel.findOne({
     $or: [
       { email: normalizedEmail },
       { username: normalizedUsername },
-      { ffUid: normalizedFfUid },
     ],
   }).lean();
 
   if (!isUserExist) {
     req.body.email = normalizedEmail;
     req.body.username = normalizedUsername;
-    req.body.ffUid = normalizedFfUid;
     req.body.ffName = ffName.trim();
     return next();
   }
 
   if (isUserExist.email === normalizedEmail) return sendError(res, "auth/email-already-exists");
   if (isUserExist.username === normalizedUsername) return sendError(res, "auth/username-already-exists");
-  if (isUserExist.ffUid === normalizedFfUid) return sendError(res, "auth/ffUid-already-exists");
   return sendError(res, "auth/email-already-exists");
 }
 
@@ -77,7 +69,9 @@ async function validateLogin(req, res, next) {
 
   const isPasswordValid = user ? await bcrypt.compare(password, user.password) : false;
   if (!isPasswordValid) return sendError(res, "auth/invalid-credentials");
-  if (user.isBanned || user.isDisabled) return sendError(res, "auth/account-restricted");
+  if (user.isBanned) return sendError(res, "auth/account-restricted", {
+    reason: user.banReason,
+  });
 
   req.data = user;
   next();

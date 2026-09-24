@@ -13,7 +13,6 @@ const tournamentRegistrationSchema = new mongoose.Schema(
       required: true,
     },
     ffName: { type: String, required: true, trim: true },
-    ffUid: { type: String, required: true, trim: true },
     status: {
       type: String,
       enum: ["registered", "withdrawn", "disqualified"],

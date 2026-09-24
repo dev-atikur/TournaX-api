@@ -117,7 +117,7 @@ async function finalizeOtpVerification(req, res, id, purpose) {
         await issueSession(req, res, user);
         return user;
       case "login":
-        if (user.isBanned || user.isDisabled) {
+        if (user.isBanned) {
           sendError(res, "auth/account-restricted");
           return false;
         }
