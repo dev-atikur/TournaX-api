@@ -95,7 +95,7 @@ async function updateUserRole(req, res) {
     if (!isObjectId(req.params.id)) return sendError(res, "common/invalid-id");
     if (req.user.role !== USER_ROLES.ADMIN) return sendError(res, "auth/forbidden");
     const role = req.body.role;
-    if (![USER_ROLES.USER, USER_ROLES.MODERATOR].includes(role)) {
+    if (![USER_ROLES.USER, USER_ROLES.ADMIN].includes(role)) {
       return sendError(res, "auth/forbidden");
     }
 

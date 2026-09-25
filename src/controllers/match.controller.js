@@ -23,7 +23,7 @@ const ROOM_PUBLIC_STATUSES = [MATCH_STATUS.ROOM_READY, MATCH_STATUS.LIVE];
 
 async function canSeeRoom(req, match) {
   if (!req.user) return false;
-  const tournament = await tournamentModel.findById(match.tournamentId).select("moderators createdBy").lean();
+  const tournament = await tournamentModel.findById(match.tournamentId).select("createdBy").lean();
   if (isStaffForTournament(req.user, tournament)) return true;
   if (!ROOM_PUBLIC_STATUSES.includes(match.status)) return false;
   const registered = await tournamentRegistrationModel.exists({

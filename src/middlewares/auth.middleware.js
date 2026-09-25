@@ -67,18 +67,6 @@ const adminOnly = (req, res, next) => {
   return next();
 };
 
-const staffOnly = (req, res, next) => {
-  if (!req.user || !["admin", "moderator"].includes(req.user.role)) {
-    return sendError(res, "auth/forbidden");
-  }
-  return next();
-};
+const staffOnly = adminOnly;
 
-const moderatorOnly = (req, res, next) => {
-  if (!req.user || !["admin", "moderator"].includes(req.user.role)) {
-    return sendError(res, "auth/forbidden");
-  }
-  return next();
-};
-
-module.exports = { protect, optionalAuth, adminOnly, staffOnly, moderatorOnly };
+module.exports = { protect, optionalAuth, adminOnly, staffOnly };

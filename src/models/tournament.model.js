@@ -52,7 +52,6 @@ const tournamentSchema = new mongoose.Schema(
       ref: "user",
       required: true,
     },
-    moderators: [{ type: mongoose.Schema.Types.ObjectId, ref: "user" }],
   },
   { timestamps: true },
 );

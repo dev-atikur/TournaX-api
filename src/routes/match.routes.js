@@ -1,5 +1,5 @@
 const runMiddleware = require("../middlewares/middlewareRunner");
-const { protect, optionalAuth, staffOnly } = require("../middlewares/auth.middleware");
+const { protect, optionalAuth, adminOnly } = require("../middlewares/auth.middleware");
 const matchController = require("../controllers/match.controller");
 const { sendError } = require("../utils/response");
 const { getPathname, matchRoute } = require("../utils/path");
@@ -12,19 +12,19 @@ const routes = async (req, res) => {
   }
 
   if (path === "/api/matches" && req.method === "POST") {
-    return runMiddleware([protect, staffOnly], req, res, matchController.createMatch);
+    return runMiddleware([protect, adminOnly], req, res, matchController.createMatch);
   }
 
   const results = matchRoute(path, "/api/matches/:id/results");
   if (results && req.method === "POST") {
     req.params = results;
-    return runMiddleware([protect, staffOnly], req, res, matchController.submitResults);
+    return runMiddleware([protect, adminOnly], req, res, matchController.submitResults);
   }
 
   const verify = matchRoute(path, "/api/matches/:id/results/verify");
   if (verify && req.method === "PATCH") {
     req.params = verify;
-    return runMiddleware([protect, staffOnly], req, res, matchController.verifyResults);
+    return runMiddleware([protect, adminOnly], req, res, matchController.verifyResults);
   }
 
   const byId = matchRoute(path, "/api/matches/:id");
@@ -34,7 +34,7 @@ const routes = async (req, res) => {
   }
   if (byId && req.method === "PATCH") {
     req.params = byId;
-    return runMiddleware([protect, staffOnly], req, res, matchController.updateMatch);
+    return runMiddleware([protect, adminOnly], req, res, matchController.updateMatch);
   }
 
   sendError(res, "common/not-implemented");

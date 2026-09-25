@@ -23,8 +23,7 @@ function resolveGameMode(value) {
 
 function isStaffForTournament(user, tournament) {
   if (!user || !tournament) return false;
-  if (user.role === "admin") return true;
-  return (tournament.moderators || []).some((id) => String(id) === String(user.id));
+  return user.role === "admin";
 }
 
 function isRegistrationWindowOpen(tournament, now = new Date()) {
@@ -129,7 +128,6 @@ async function createTournament(req, res) {
       prizes: Array.isArray(body.prizes) ? body.prizes : [],
       scoringRules: body.scoringRules || undefined,
       createdBy: req.user.id,
-      moderators: body.moderators || [],
     });
 
     return sendSuccess(res, 201, "Tournament created", cleanObject(tournament));
@@ -166,7 +164,6 @@ async function updateTournament(req, res) {
       "rules",
       "prizes",
       "scoringRules",
-      "moderators",
     ];
     allowed.forEach((field) => {
       if (req.body[field] !== undefined) tournament[field] = req.body[field];

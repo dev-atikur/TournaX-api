@@ -21,7 +21,6 @@ const TWO_FACTOR_METHOD = {
 
 const USER_ROLES = {
   USER: "user",
-  MODERATOR: "moderator",
   ADMIN: "admin",
 };
 
