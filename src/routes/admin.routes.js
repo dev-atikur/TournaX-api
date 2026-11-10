@@ -6,6 +6,7 @@ const matchController = require("../controllers/match.controller");
 const { sendError } = require("../utils/response");
 const { getPathname, matchRoute } = require("../utils/path");
 
+
 const routes = async (req, res) => {
   const path = getPathname(req);
 
