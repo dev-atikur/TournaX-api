@@ -203,13 +203,13 @@ async function changePassword(req, res) {
 async function forgotPassword(req, res) {
   try {
     clearCookie(res, "resetId");
-    const { email, phone, method } = req.body;
-    if (!email && !phone) return sendError(res, "auth/missing-fields");
+    const { identifier, method } = req.body;
+    if (!identifier) return sendError(res, "auth/missing-fields");
     if (!["email", "sms"].includes(method)) return sendError(res, "auth/invalid-method");
 
     const query = method === "sms"
-      ? { phone: String(phone || "").trim() }
-      : { email: String(email || "").trim().toLowerCase() };
+      ? { phone: String(identifier || "").trim() }
+      : { email: String(identifier || "").trim().toLowerCase() };
 
     const user = await userModel.findOne(query);
     if (!user) {

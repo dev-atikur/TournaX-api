@@ -53,25 +53,27 @@ async function validateRegister(req, res, next) {
 }
 
 async function validateLogin(req, res, next) {
-  const { email, username, password } = req.body;
+  const { identifier, password } = req.body;
 
-  if ((!email && !username) || !password) {
+  if (!identifier || !password) {
     return sendError(res, "auth/missing-fields");
   }
 
-  const filters = [];
-  if (email) filters.push({ email: String(email).trim().toLowerCase() });
-  if (username) filters.push({ username: String(username).trim().toLowerCase() });
+  const value = String(identifier).trim().toLowerCase();
+  const isEmail = value.includes("@");
+  const filter = isEmail ? { email: value } : { username: value };
 
-  const user = await userModel
-    .findOne({ $or: filters })
-    .select("+password");
+  const user = await userModel.findOne(filter).select("+password");
+  const isPasswordValid = user
+    ? await bcrypt.compare(password, user.password)
+    : false;
 
-  const isPasswordValid = user ? await bcrypt.compare(password, user.password) : false;
   if (!isPasswordValid) return sendError(res, "auth/invalid-credentials");
-  if (user.isBanned) return sendError(res, "auth/account-restricted", {
-    reason: user.banReason,
-  });
+  if (user.isBanned) {
+    return sendError(res, "auth/account-restricted", {
+      reason: user.banReason,
+    });
+  }
 
   req.data = user;
   next();
